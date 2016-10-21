@@ -13,8 +13,6 @@ def calcBfield(r, DipolePositions, m):
 
 
 
-    res = 0.
-
     mu0 = 4 * np.pi *1e-7 # T m /A
 
     a = np.ones((np.shape(DipolePositions)[0],1)) * np.array([r])-DipolePositions
