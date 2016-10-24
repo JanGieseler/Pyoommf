@@ -43,7 +43,7 @@ def load_ommf_vect_data(filename):
                 file_info[k] = float(s.split('# {:s}:'.format(k))[1].split('\\n')[0].strip())
 
         if '# Title' in s:
-            file_info['field_type'] = s.split('::')[1].split('\\n')[0]
+            file_info['field_type'] = s.split('::')[1].split('\\n')[0].split('\n')[0]
 
     data = np.loadtxt(filename)
 
@@ -60,7 +60,7 @@ def load_ommf_vect_data(filename):
     Z = Z.flatten()
 
     label = file_info['field_type']
-    if label == 'Magnetization':
+    if 'Magnetization' in label:
         label = 'm'
 
     df = pd.DataFrame.from_dict({
