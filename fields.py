@@ -1,15 +1,21 @@
 import numpy as np
 from copy import deepcopy
-def calcBfield(rs, DipolePositions, m, use_parallel = True):
+def calcBfield(rs, data, info, use_parallel = True):
     '''
     Calculate the magnetic field for a collection of dipoles
-    r: (vector of length 3), position in space in nm
-    ri: (matrix with dimension m x 3) m dipole locations in space in nm
+    rs: (matrix with dimension m x 3), position in space in um
+    ri: (matrix with dimension N x 3) N dipole locations in space in um
 
     m: (vector of length 3) magnetic moment of a dipole in 1e-18 J/T
 
     Output in T
     '''
+
+    mu0 = 4 * np.pi * 1e-7  # T m /A
+    dV = info['xstepsize'] * info['ystepsize'] * info['zstepsize'] * 1e18  # cell volume in um^3
+
+    DipolePositions = data[['x', 'y', 'z']].as_matrix() * 1e6  # convert from m to um
+    m = data[['mx', 'my', 'mz']].as_matrix() * dV  # multiply by the cell volume to get the magnetic dipole moment (1e-6 A um^2 = 1e-18 J/T)
 
     if use_parallel:
         # try importing the multiprocessing library
@@ -42,13 +48,29 @@ def calcBfield(rs, DipolePositions, m, use_parallel = True):
 
 
     def B_function(r, DipolePositions, m):
+        """
+        calculates the magnetic field at position r
+        :param r: vector of length 3 position at which field is evaluates (in um)
+        :param DipolePositions: matrix Nx3, of positions of dipoles (in um)
+        :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
+        :return:
+        """
 
-        mu0 = 4 * np.pi *1e-7 # T m /A
         a = np.ones((np.shape(DipolePositions)[0],1)) * np.array([r])-DipolePositions
-        rho = np.array([np.sqrt(np.sum(a**2,1))]).transpose()*np.ones((1,3))
+        rho = np.sqrt(np.sum(a ** 2, 1))
+
+        # if we request thefield at the location of the dipole the field diverges, thus we exclude this value because we only want to get the fields from all the other dipoles
+        zero_value_index = np.argwhere(rho == 0)
+
+        rho = np.array([rho]).T * np.ones((1, 3))
+
         # calculate the vector product of m and a: m*(r-ri)
         ma = np.array([np.sum(m*a,1)]).T*np.ones((1,3))
-        B = mu0 / (4 * np.pi ) * ( 3. * a * ma / rho**5- m / rho**3)
+        B = mu0 / (4 * np.pi ) * ( 3. * a * ma / rho**5- m / rho**3) # magnetic field in Tesla
+
+        # exclude the dipole at the location where we calculate the field
+        if len(zero_value_index) > 0:
+            B[zero_value_index, :] = np.zeros([len(zero_value_index), 3])
 
         return np.sum(B, 0)
 
