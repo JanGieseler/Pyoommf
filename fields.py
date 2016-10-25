@@ -1,12 +1,13 @@
 import numpy as np
+import pandas as pd
 from copy import deepcopy
 def calcBfield(rs, data, info, use_parallel = True):
     '''
     Calculate the magnetic field for a collection of dipoles
-    rs: (matrix with dimension m x 3), position in space in um
-    ri: (matrix with dimension N x 3) N dipole locations in space in um
-
-    m: (vector of length 3) magnetic moment of a dipole in 1e-18 J/T
+    rs: (matrix with dimension m x 3), positions at which field is evaluated in space (in um)
+    data: dataframe with columns 'mx', 'my', 'mz', 'x', 'y', 'z' that gives the dipolevector and its location
+    info: dictionary with metadata for the dataset, contains 'xstepsize', 'ystepsize', 'zstepsize', which give the spacing of the dipole locations
+    use_parallel:  (boolean) if True use parallel execution of code
 
     Output in T
     '''
@@ -94,12 +95,14 @@ def calcBfield(rs, data, info, use_parallel = True):
     data['By'] = deepcopy(B[:, 1])
     data['Bz'] = deepcopy(B[:, 2])
 
-    return data
+
+
+    return pd.DataFrame.from_dict(data)
 
 
 
 
-
+# old:
 def calcGradient(r, DipolePositions, m, s, n):
     '''
     Calculate the gradient for a collection of dipoles
