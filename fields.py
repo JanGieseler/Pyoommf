@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+
+
 def calcBfield(rs, data, info, use_parallel = True):
     '''
     Calculate the magnetic field for a collection of dipoles
@@ -9,7 +11,7 @@ def calcBfield(rs, data, info, use_parallel = True):
     info: dictionary with metadata for the dataset, contains 'xstepsize', 'ystepsize', 'zstepsize', which give the spacing of the dipole locations
     use_parallel:  (boolean) if True use parallel execution of code
 
-    Output in T
+    :returns pandas dataframe columns 'Bx', 'By', 'Bz', 'x', 'y', 'z' that gives the fieldvector and its location (=rs)
     '''
 
     mu0 = 4 * np.pi * 1e-7  # T m /A
@@ -26,7 +28,7 @@ def calcBfield(rs, data, info, use_parallel = True):
 
     def process(rs):
         """
-        calculates the data (Gradient, Bfield or both) at positions rs
+        calculates the data at positions rs
         """
 
         data = {
@@ -43,9 +45,9 @@ def calcBfield(rs, data, info, use_parallel = True):
 
         return data
 
-    def rs_subset(i, num_cores, rs):
-        data_per_core = int(np.floor(len(rs)/num_cores))
-        return rs[i*data_per_core:min((i+1)*data_per_core, len(rs))]
+    # def rs_subset(i, num_cores, rs):
+    #     data_per_core = int(np.floor(len(rs)/num_cores))
+    #     return rs[i*data_per_core:min((i+1)*data_per_core, len(rs))]
 
 
     def B_function(r, DipolePositions, m):
@@ -90,13 +92,12 @@ def calcBfield(rs, data, info, use_parallel = True):
         B = np.array([calcBfield(r, DipolePositions, m) for r in rs])
 
     # put data into a dictionary
-
     data['Bx'] = deepcopy(B[:, 0])
     data['By'] = deepcopy(B[:, 1])
     data['Bz'] = deepcopy(B[:, 2])
 
 
-
+    # return data as a pandas dataframe
     return pd.DataFrame.from_dict(data)
 
 
