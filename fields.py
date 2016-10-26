@@ -6,101 +6,128 @@ from copy import deepcopy
 def calcBfield(rs, data, info, use_parallel = True):
     '''
     Calculate the magnetic field for a collection of dipoles
-    rs: (matrix with dimension m x 3), positions at which field is evaluated in space (in um)
+    rs: (matrix with dimension m x 3), positions at which field is evaluated in space (in m)
     data: dataframe with columns 'mx', 'my', 'mz', 'x', 'y', 'z' that gives the dipolevector and its location
     info: dictionary with metadata for the dataset, contains 'xstepsize', 'ystepsize', 'zstepsize', which give the spacing of the dipole locations
-    use_parallel:  (boolean) if True use parallel execution of code
+    use_parallel:  (boolean) if True use parallel execution of code this is not working yet....
 
     :returns pandas dataframe columns 'Bx', 'By', 'Bz', 'x', 'y', 'z' that gives the fieldvector and its location (=rs)
     '''
 
-    mu0 = 4 * np.pi * 1e-7  # T m /A
     dV = info['xstepsize'] * info['ystepsize'] * info['zstepsize'] * 1e18  # cell volume in um^3
+
+    print('length of data', len(data))
+
+    # pick only the data where the magnetization is actually non-zero
+    data = data[np.sum(data[['mx', 'my', 'mz']].as_matrix()**2,1)>0]
+
 
     DipolePositions = data[['x', 'y', 'z']].as_matrix() * 1e6  # convert from m to um
     m = data[['mx', 'my', 'mz']].as_matrix() * dV  # multiply by the cell volume to get the magnetic dipole moment (1e-6 A um^2 = 1e-18 J/T)
 
+
+    rs *=1e6# convert from m to um
+
+
+    print('number of magnetic moments', len(data))
+    print('number of positions', len(rs))
     if use_parallel:
         # try importing the multiprocessing library
         from joblib import Parallel, delayed
         import multiprocessing
         num_cores = multiprocessing.cpu_count()
 
-    def process(rs):
-        """
-        calculates the data at positions rs
-        """
+        print('using ', num_cores, ' cores')
 
-        data = {
-            'x':deepcopy(rs[:,0]),
-            'y':deepcopy(rs[:,1]),
-            'z':deepcopy(rs[:,2])
-        }
+    def process(r):
+        return calcBfield_single_pt(r, DipolePositions, m)
 
-        B = np.array([B_function(r, DipolePositions, m) for r in rs])
-        data['Bx'] = deepcopy(B[:,0])
-        data['By'] = deepcopy(B[:,1])
-        data['Bz'] = deepcopy(B[:,2])
-
-
-        return data
+    # def process(rs):
+    #     """
+    #     calculates the data at positions rs
+    #     """
+    #
+    #     # data = {
+    #     #     'x':deepcopy(rs[:,0]),
+    #     #     'y':deepcopy(rs[:,1]),
+    #     #     'z':deepcopy(rs[:,2])
+    #     # }
+    #
+    #     B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
+    #     data['Bx'] = deepcopy(B[:,0])
+    #     data['By'] = deepcopy(B[:,1])
+    #     data['Bz'] = deepcopy(B[:,2])
+    #
+    #
+    #     return data
 
     # def rs_subset(i, num_cores, rs):
     #     data_per_core = int(np.floor(len(rs)/num_cores))
     #     return rs[i*data_per_core:min((i+1)*data_per_core, len(rs))]
 
 
-    def B_function(r, DipolePositions, m):
-        """
-        calculates the magnetic field at position r
-        :param r: vector of length 3 position at which field is evaluates (in um)
-        :param DipolePositions: matrix Nx3, of positions of dipoles (in um)
-        :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
-        :return:
-        """
-
-        a = np.ones((np.shape(DipolePositions)[0],1)) * np.array([r])-DipolePositions
-        rho = np.sqrt(np.sum(a ** 2, 1))
-
-        # if we request thefield at the location of the dipole the field diverges, thus we exclude this value because we only want to get the fields from all the other dipoles
-        zero_value_index = np.argwhere(rho == 0)
-
-        rho = np.array([rho]).T * np.ones((1, 3))
-
-        # calculate the vector product of m and a: m*(r-ri)
-        ma = np.array([np.sum(m*a,1)]).T*np.ones((1,3))
-        B = mu0 / (4 * np.pi ) * ( 3. * a * ma / rho**5- m / rho**3) # magnetic field in Tesla
-
-        # exclude the dipole at the location where we calculate the field
-        if len(zero_value_index) > 0:
-            B[zero_value_index, :] = np.zeros([len(zero_value_index), 3])
-
-        return np.sum(B, 0)
 
 
-    data = {
+
+    data_out = {
         'x':deepcopy(rs[:,0]),
         'y':deepcopy(rs[:,1]),
         'z':deepcopy(rs[:,2])
     }
 
+
+
     if use_parallel:
-        B = Parallel(n_jobs=num_cores)(delayed(B_function)(r, DipolePositions, m) for r in rs)
+
+        # Parallel(n_jobs=1)(delayed(sqrt)(i ** 2) for i in range(10))
+        # B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+        B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+        # B = Parallel(n_jobs=num_cores)(delayed(process)(r) for r in rs)
         B = np.array(B)
 
     else:
-        B = np.array([calcBfield(r, DipolePositions, m) for r in rs])
+        B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
 
     # put data into a dictionary
-    data['Bx'] = deepcopy(B[:, 0])
-    data['By'] = deepcopy(B[:, 1])
-    data['Bz'] = deepcopy(B[:, 2])
+    data_out['Bx'] = deepcopy(B[:, 0])
+    data_out['By'] = deepcopy(B[:, 1])
+    data_out['Bz'] = deepcopy(B[:, 2])
 
 
     # return data as a pandas dataframe
-    return pd.DataFrame.from_dict(data)
+    return pd.DataFrame.from_dict(data_out)
 
 
+def calcBfield_single_pt(r, DipolePositions, m):
+    """
+    calculates the magnetic field at position r
+    :param r: vector of length 3 position at which field is evaluates (in um)
+    :param DipolePositions: matrix Nx3, of positions of dipoles (in um)
+    :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
+    :return:
+    """
+    mu0 = 4 * np.pi * 1e-7  # T m /A
+    a = np.ones((np.shape(DipolePositions)[0], 1)) * np.array([r]) - DipolePositions
+    rho = np.sqrt(np.sum(a ** 2, 1))
+
+    # if we request thefield at the location of the dipole the field diverges, thus we exclude this value because we only want to get the fields from all the other dipoles
+    zero_value_index = np.argwhere(rho == 0)
+
+    rho = np.array([rho]).T * np.ones((1, 3))
+
+    # calculate the vector product of m and a: m*(r-ri)
+    ma = np.array([np.sum(m * a, 1)]).T * np.ones((1, 3))
+    B = mu0 / (4 * np.pi) * (3. * a * ma / rho ** 5 - m / rho ** 3)  # magnetic field in Tesla
+
+    # exclude the dipole at the location where we calculate the field
+    if len(zero_value_index) > 0:
+        B[zero_value_index, :] = np.zeros([len(zero_value_index), 3])
+
+    return np.sum(B, 0)
+
+
+def processInput(i):
+    return i * i
 
 
 # old:
@@ -137,3 +164,40 @@ def calcGradient(r, DipolePositions, m, s, n):
         )
 
     return np.sum(gradB,0)
+
+
+if __name__ == '__main__':
+
+    import read_write as rw
+    import os
+    import datetime
+
+    # folder = 'Z:\Lab\Cantilever\tmp_jan\oommf_results_2'
+    folder = ''
+
+    file_mag = os.path.join(folder , 'random_K1_length_1.5um-Oxs_MinDriver-Magnetization-00000-0001715-omf.tsv')
+    file_H = os.path.join(folder , 'random_K1_length_1.5um-Oxs_CGEvolve-H-00000-0001715-ovf.tsv')
+
+    print(os.path.exists(file_H))
+
+    data_mag, info_mag = rw.load_ommf_vect_data(file_mag)
+    data_mag.head()
+
+    data_H, info_H = rw.load_ommf_vect_data(file_H)
+    data_H.head()
+
+    zo = -5e-9
+    subdata_H = rw.get_slice(data_H, zo, info_mag, 'z')
+    subdata_mag = rw.get_slice(data_mag, zo, info_mag, 'z')
+
+    r = subdata_H[['x', 'y', 'z']].as_matrix()
+    print(np.shape(r))
+
+    t1 =datetime.datetime.now()
+    dataB = calcBfield(r, subdata_mag, info_mag, True)
+    t2 = datetime.datetime.now()
+    dataB = calcBfield(r, subdata_mag, info_mag, False)
+    t3 = datetime.datetime.now()
+
+    print('excution time parallel', t2-t1)
+    print('excution time not parallel', t3 - t2)
