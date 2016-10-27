@@ -22,7 +22,7 @@ def Bfield_from_mag(stage, data_folder, target_folder, tag='2.5um_Co_magnet', xm
     # calculate the grid
     x = np.arange(xmin, xmax, dx)
     y = np.arange(ymin, ymax, dx)
-    Nx, Ny = len(x), len(y)
+    # Nx, Ny = len(x), len(y)
     X, Y = np.meshgrid(x, y)
     np.shape(X), np.shape(Y)
 
