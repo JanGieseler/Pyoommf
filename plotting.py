@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from fields import field_component
 
-def plot_Bfield(stage, data_folder, target_folder, tag='2.5um_Co_magnet', zo=0.1e-6, component_name = None, s = None):
+def plot_Bfield(stage, data_folder, target_folder, tag='2.5um_Co_magnet', zo=0.1e-6, component_name = 'Bfield_mag', s = None):
     in_file = os.path.join(os.path.join(data_folder, target_folder),
                            '{:s}_b_fields_zo_{:0.1f}um_stage_{:03d}.csv'.format(tag, 1e6 * zo, stage))
 
@@ -36,4 +36,6 @@ def plot_Bfield(stage, data_folder, target_folder, tag='2.5um_Co_magnet', zo=0.1
 
     plt.axes().set_aspect('equal')
 
-    fig.savefig(in_file.replace('.csv', '.jpg'))
+
+
+    fig.savefig(in_file.replace('.csv', '_{:s}.jpg',format(component_name)))
