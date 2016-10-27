@@ -126,9 +126,6 @@ def calcBfield_single_pt(r, DipolePositions, m):
     return np.sum(B, 0)
 
 
-def processInput(i):
-    return i * i
-
 
 # old:
 def calcGradient(r, DipolePositions, m, s, n):

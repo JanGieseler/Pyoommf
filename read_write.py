@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
 
-
-
 def load_ommf_tab_data(filename):
     """
     load the 1D data from a .odt file as created by oommf
@@ -81,10 +79,3 @@ def get_slice(df, value, info, axis='z'):
     filter_str = '%s >= %e & %s <= %e ' % (
     axis, value - info['{:s}stepsize'.format(axis)] / 3., axis, value + info['{:s}stepsize'.format(axis)] / 3.)
     return df.query(filter_str)
-
-
-def b_field_mag(df):
-    """
-    return the magnetic field in Gauss
-    """
-    return np.sqrt(df['Hx'] ** 2 + df['Hy'] ** 2 + df['Hz'] ** 2) * (4 * np.pi * 1e-7 * 1e4)
