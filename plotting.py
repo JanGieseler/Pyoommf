@@ -25,7 +25,7 @@ def plot_Bfield(stage, data_folder, target_folder, tag='2.5um_Co_magnet', zo=0.1
     ymin, ymax = np.min(Y), np.max(Y)
 
     fig = plt.figure(figsize=(15, 4))
-    CS = plt.pcolor(X, Y, C * 1e4)
+    CS = plt.pcolor(X, Y, C)
     plt.colorbar(label=label)
     plt.title('magnetic field - zo  = {:0.1f} um (stage {:03d})'.format(1e6 * zo, stage))
     plt.xlabel('x ($\mu m$)')
@@ -38,4 +38,4 @@ def plot_Bfield(stage, data_folder, target_folder, tag='2.5um_Co_magnet', zo=0.1
 
 
 
-    fig.savefig(in_file.replace('.csv', '_{:s}.jpg',format(component_name)))
+    fig.savefig(in_file.replace('.csv', '_{:s}.jpg'.format(component_name)))

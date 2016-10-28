@@ -11,7 +11,7 @@ def Bfield_from_mag(stage, data_folder, target_folder, tag='2.5um_Co_magnet', xm
     calculates the b field in the x-y plane as at a distance zo and saves it as a .csv to the data_folder/target_folder
     """
 
-    f = glob.glob(os.path.join(os.path.join(data_folder, 'data'), '*Magnetization-{:05d}-*omf.tsv'.format(stage)))[0]
+    f = glob.glob(os.path.join(os.path.join(data_folder, 'data'), '*Magnetization-*{:d}-*-omf.tsv'.format(stage)))[0]
     data_mag, info_mag = rw.load_ommf_vect_data(f)
 
     if xmin is None:
