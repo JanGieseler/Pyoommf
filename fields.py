@@ -68,11 +68,11 @@ def calcBfield(rs, data, info, use_parallel = True):
 
 
 
-
+    # convert from um to m
     data_out = {
-        'x':deepcopy(rs[:,0]),
-        'y':deepcopy(rs[:,1]),
-        'z':deepcopy(rs[:,2])
+        'x':deepcopy(rs[:,0]*1e-6),
+        'y':deepcopy(rs[:,1]*1e-6),
+        'z':deepcopy(rs[:,2]*1e-6)
     }
 
 
