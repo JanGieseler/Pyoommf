@@ -145,11 +145,11 @@ def field_component(data, component_name = None, s = None):
     if component_name is None or component_name == 'Bfield_mag':
         D = 1e4 * np.sqrt(Bx**2 + By**2 + Bz**2)
         label = '$|\mathbf{B}|$ (Gauss)'
-    elif component_name in ('Bfield_proj', 'Bfield_par', 'Bfield_long'):
+    elif component_name in ('Bfield_proj', 'Bfield_par', 'Bfield_long', 'parallel'):
         D = 1e4 * (Bx * s[0] + By * s[1] + Bz * s[2])
         # label = '$\mathbf{B}\cdot \mathbf{S}$ (Gauss)'
         label = '$B_{\parallel}$ (Gauss)'
-    elif component_name in ('Bfield_perp', 'Bfield_trans'):
+    elif component_name in ('Bfield_perp', 'Bfield_trans', 'perpendicular'):
         D = 1e4 * np.sqrt((By * s[2] - Bz * s[1]) ** 2 + (Bz * s[0] - Bx * s[2]) ** 2 + (Bx * s[1] - By * s[0]) ** 2)
         label = '$B_{\perp}$ (Gauss)'
 

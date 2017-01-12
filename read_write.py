@@ -7,14 +7,20 @@ def load_ommf_tab_data(filename):
     """
     f = open(filename, "rb")
     for i in range(40):
-        s = f.readline()
+        s = str(f.readline()) # if read as a byte convert to string
         if '# Columns:' in s:
             headers = [x.split('::')[1].split('{')[0].split('}')[0].strip() for x in s.split('Oxs')[1:]]
+
+            # next line contains the units
+            s = str(f.readline())  # if read as a byte convert to string
+            units = [x for x in s.split(' ') if x is not ''][2:]
             break
+
+    units = {k: d for k, d in zip(headers, units)}
     data = np.loadtxt(f)
     df = pd.DataFrame.from_records(data, columns=headers)
     df = df.set_index(['Stage'])
-    return df
+    return df, units
 
 
 def load_ommf_vect_data(filename):
