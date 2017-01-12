@@ -23,8 +23,15 @@ def plot_Bfield(stage, data_folder, target_folder, tag=None, zo=0.1e-6, componen
         tag = data_folder
 
 
-    in_file = os.path.join(os.path.join(data_folder, target_folder),
-                           '{:s}_b_fields_zo_{:0.1f}um_stage_{:03d}.csv'.format(tag, 1e6 * zo, stage))
+    in_file = os.path.join(os.path.join(data_folder, target_folder),'*b_fields_zo_{:0.1f}um_stage_{:03d}.csv'.format(1e6 * zo, stage))
+
+
+    if len(glob.glob(in_file)) == 1:
+        in_file = glob.glob(in_file)[0]
+    else:
+        print('Could not find {:s}'.format(in_file))
+        raise FileNotFoundError
+    print('loading file: '.format(in_file))
 
     dataB = pd.read_csv(in_file)
 
