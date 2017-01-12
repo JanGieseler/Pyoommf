@@ -28,6 +28,8 @@ def load_ommf_vect_data(filename):
     """
     reads a dataset that has been produced with oommf and returns the data and file info
     """
+
+    print('loading {:s}'.format(filename))
     f = open(filename, "rb")
 
     file_info = {
@@ -97,7 +99,7 @@ def convert_omf_2_tsv(source, oommf_path='/Applications/oommf/'):
     if isinstance(source, str):
         source = [source]
     for s in source:
-        target = s.replace('.omf', '.tsv')
+        target = s.replace('.omf', '-omf.tsv')
         command = '{:s} avf2ovf -format text {:s} {:s}'.format(os.path.join(oommf_path, 'oommf.tcl'), s, target)
         # call(command)
         os.system(command)

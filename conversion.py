@@ -12,7 +12,18 @@ def Bfield_from_mag(stage, data_folder, target_folder, tag=None, xmargin=1.0e-6,
     calculates the b field in the x-y plane as at a distance zo and saves it as a .csv to the data_folder/target_folder
     """
 
-    f = glob.glob(os.path.join(os.path.join(data_folder, 'data'), '*Magnetization-*{:d}-*-omf.tsv'.format(stage)))[0]
+    f = glob.glob(os.path.join(data_folder, '*Magnetization-*{:d}-*-omf.tsv'.format(stage)))
+    if len(f)>0:
+        f = f[0]
+    else:
+        f = glob.glob(os.path.join(os.path.join(data_folder, 'data'), '*Magnetization-*{:d}-*-omf.tsv'.format(stage)))
+
+        if len(f) > 0:
+            f = f[0]
+        else:
+            print('Could\'t find {:s}'.format('*Magnetization-*{:d}-*-omf.tsv'.format(stage)))
+            raise FileNotFoundError()
+
     data_mag, info_mag = rw.load_ommf_vect_data(f)
 
     if tag is None:
