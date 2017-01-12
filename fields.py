@@ -68,11 +68,11 @@ def calcBfield(rs, data, info, use_parallel = True):
 
 
 
-
+    # convert from um to m
     data_out = {
-        'x':deepcopy(rs[:,0]),
-        'y':deepcopy(rs[:,1]),
-        'z':deepcopy(rs[:,2])
+        'x':deepcopy(rs[:,0]*1e-6),
+        'y':deepcopy(rs[:,1]*1e-6),
+        'z':deepcopy(rs[:,2]*1e-6)
     }
 
 
@@ -217,13 +217,17 @@ if __name__ == '__main__':
     subdata_mag = rw.get_slice(data_mag, zo, info_mag, 'z')
 
     r = subdata_H[['x', 'y', 'z']].as_matrix()
-    print(np.shape(r))
+
+    r = r[0:10, :]
+    print('shape r', np.shape(r))
+
+
 
     t1 =datetime.datetime.now()
     dataB = calcBfield(r, subdata_mag, info_mag, True)
     t2 = datetime.datetime.now()
-    dataB = calcBfield(r, subdata_mag, info_mag, False)
-    t3 = datetime.datetime.now()
+    # dataB = calcBfield(r, subdata_mag, info_mag, False)
+    # t3 = datetime.datetime.now()
 
-    print('excution time parallel', t2-t1)
-    print('excution time not parallel', t3 - t2)
+    print('excution time parallel', str(t2-t1))
+    # print('excution time not parallel', str(t3 - t2))
