@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import os
 
 def load_ommf_tab_data(filename):
     """
@@ -85,3 +86,36 @@ def get_slice(df, value, info, axis='z'):
     filter_str = '%s >= %e & %s <= %e ' % (
     axis, value - info['{:s}stepsize'.format(axis)] / 3., axis, value + info['{:s}stepsize'.format(axis)] / 3.)
     return df.query(filter_str)
+
+
+def convert_omf_2_tsv(source, oommf_path='/Applications/oommf/'):
+    """
+    converts the .omf files in source into tsv files using the convertion shipped with oommf
+
+    """
+
+    if isinstance(source, str):
+        source = [source]
+    for s in source:
+        target = s.replace('.omf', '.tsv')
+        command = '{:s} avf2ovf -format text {:s} {:s}'.format(os.path.join(oommf_path, 'oommf.tcl'), s, target)
+        # call(command)
+        os.system(command)
+
+def get_parameters_from_mif(filename):
+    """
+    return the parameters defined in a .mif file as a dictionary.
+    This function searches for lines in a text file that start with Parameter =
+    """
+    f = open(filename, "rb")
+
+    parameters = {}
+    for i in range(2000):
+        s = str(f.readline())
+        if s == "b''":
+            break
+        if 'Parameter' in s:
+            parameters.update({s.split(' ')[1]: s.split(' ')[2].split('\\r')[0]})
+
+    f.close()
+    return parameters
