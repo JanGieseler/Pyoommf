@@ -1,3 +1,8 @@
+# run this script to calculate the magnetic fields from a magnetization obtained with oommf
+#
+
+
+
 import glob
 import os
 import numpy as np
@@ -35,7 +40,7 @@ if __name__ == '__main__':
 
             tabdata, units = rw.load_ommf_tab_data(glob.glob(os.path.join(data_folder, '*.odt'))[0])
             #        stages = [int(x) for x in  np.array(tabdata[tabdata.B ==0].index)] # find the stage where the external field is 0
-            stages = range(50, 70, 10)
+            stages = range(0, 50, 10)
             print(stages)
             for stage in stages:
                 Bfield_from_mag(stage, data_folder, target_folder, zo=zo, dx=25e-9)
