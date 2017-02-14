@@ -31,7 +31,9 @@ def plot_Bfield(stage, data_folder, target_folder, tag=None, zo=0.1e-6, componen
     else:
         print('Could not find {:s}'.format(in_file))
         raise FileNotFoundError
-    print('loading file: '.format(in_file))
+    print('loading file: {:s}'.format(in_file))
+
+    out_file = in_file.replace('.csv', '{:s}_{:s}.jpg'.format(component_name, tag))
 
     dataB = pd.read_csv(in_file)
 
@@ -72,4 +74,4 @@ def plot_Bfield(stage, data_folder, target_folder, tag=None, zo=0.1e-6, componen
 
 
 
-    fig.savefig(in_file.replace('.csv', '_{:s}.jpg'.format(component_name)))
+    fig.savefig(out_file)

@@ -121,3 +121,13 @@ def get_parameters_from_mif(filename):
 
     f.close()
     return parameters
+
+
+
+if __name__ == '__main__':
+
+    import glob
+
+    source = glob.glob('/Users/rettentulla/Downloads/20170209_TrapezoidalCoMagnet/Length_1.5um_transition_0.4um/*.omf')
+    # print(source)
+    convert_omf_2_tsv(source)
