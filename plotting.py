@@ -22,6 +22,8 @@ def plot_Bfield(stage, data_folder, target_folder, tag=None, zo=0.1e-6, componen
     if tag is None:
         tag = data_folder
 
+    # in_file = os.path.join(os.path.join(data_folder, target_folder),
+    #                        '{:s}_b_fields_zo_{:0.1f}um_stage_{:03d}.csv'.format(tag, 1e6 * zo, stage))
 
     in_file = os.path.join(os.path.join(data_folder, target_folder),'*b_fields_zo_{:0.1f}um_stage_{:03d}.csv'.format(1e6 * zo, stage))
 
@@ -30,7 +32,7 @@ def plot_Bfield(stage, data_folder, target_folder, tag=None, zo=0.1e-6, componen
         in_file = glob.glob(in_file)[0]
     else:
         print('Could not find {:s}'.format(in_file))
-        raise FileNotFoundError
+        raise IOError
     print('loading file: {:s}'.format(in_file))
 
     out_file = in_file.replace('.csv', '{:s}_{:s}.jpg'.format(component_name, tag))
@@ -75,3 +77,4 @@ def plot_Bfield(stage, data_folder, target_folder, tag=None, zo=0.1e-6, componen
 
 
     fig.savefig(out_file)
+    fig.close()
