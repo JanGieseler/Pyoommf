@@ -1,0 +1,50 @@
+{
+"CoBarMagnet_z_motion_x":
+{
+"magnet_material_parameters":
+	{
+	"density_kg/m^3": 8.9e3,
+	"atom_mass_dalton": 58.9,
+	"g_factor": 1.6
+	},
+"magnet_dimensions_um":
+	{
+	"height": 0.1,
+	"width": 0.3,
+	"length": 1.0
+	},
+"number_of_dipoles":
+	{
+	"nx": 8,
+	"ny": 16,
+	"nz": 80
+	},
+"unit_vector_spin": [0.57738154519998031,0.57738154519998031,-0.57728771208554774],
+"unit_vector_magnet": [0.0,0.0,1.0],
+"unit_vector_motion": [1.0,0.0,0.0]
+},
+"CoBarMagnet_z_motion_y":
+{
+"magnet_material_parameters":
+	{
+	"density_kg/m^3": 8.9e3,
+	"atom_mass_dalton": 58.9,
+	"g_factor": 1.6
+	},
+"magnet_dimensions_um":
+	{
+	"height": 0.1,
+	"width": 0.3,
+	"length": 1.0
+	},
+"number_of_dipoles":
+	{
+	"nx": 8,
+	"ny": 16,
+	"nz": 80
+	},
+"unit_vector_spin": [0.57738154519998031,0.57738154519998031,-0.57728771208554774],
+"unit_vector_magnet": [0.0,0.0,1.0],
+"unit_vector_motion": [0.0,1.0,0.0]
+}
+}
