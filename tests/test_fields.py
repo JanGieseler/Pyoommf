@@ -98,6 +98,44 @@ class fields(TestCase):
         print('shape DipolePositions:')
         print(np.shape(self.DipolePositions))
 
+    def my_grad_simple(self, r, dp_pos, m, s, n):
+        """
+
+        simple but safe way of calculating the B field gradient without vectorizing
+        :param r: vector length 3
+        :param dp_pos: vector length 3
+        :param m: vector length 3
+        :return:
+        """
+        mu0 = 4 * np.pi * 1e-7  # T m /A
+        a = r - dp_pos
+
+        rho = np.sqrt(np.sum(a ** 2))
+
+        # calculate the vector product of m and a: m*(r-ri)
+        # similar for s and n
+        # all these quantities are scalars
+        ma = np.sum(m*a)
+        sa = np.sum(s * a)
+        na = np.sum(n * a)
+        sn = np.vdot(s, n)
+        mn =  np.vdot(m, n)
+        ms = np.vdot(m, s)
+        gradB = 3. * mu0 / (4 * np.pi * (rho) ** 5) * (
+                ma * sn + sa * mn + ms * na
+                -5 * ( sa * ma / rho ** 2 ) * na
+        )
+
+        #
+        # gradB = 3. * mu0 / (4 * np.pi * (rho) ** 5) * (
+        #         ma * np.vdot(s, n)
+        #         + sa * np.vdot(m, n)
+        #         - (5 * sa * ma / rho ** 2 - np.vdot(m, s)) * na
+        # )
+        print('>>>>>>gradB', gradB)
+        return gradB
+
+
     def my_field_simple(self, r, dp_pos, m):
         """
 
@@ -195,9 +233,46 @@ class fields(TestCase):
         if err > 1e-6:
             raise ValueError
 
-    def test03_Grad_single_pt(self):
+    def test03a_Grad_single_pt(self):
         """
-        test the function calcBfield_single_pt
+        test the function calcBfield_single_pt repeating the same calculatation
+
+        :return:
+        """
+
+        # create random vectors
+        r = np.random.rand(3)
+        m = np.random.rand(3)
+        dp_pos = np.random.rand(3)
+        s = np.random.rand(3)
+        n = np.random.rand(3)
+
+
+        if self.verbose:
+            print('r', r)
+            print('m', m)
+            print('dp_pos', dp_pos)
+
+            print('s', s)
+            print('n', n)
+
+
+        # calculate for each dipole with the simple formula
+        G_simple = self.my_grad_simple(r, dp_pos, m, s, n)
+        # now sum up to get total field gradient
+        # calculate the gradient at the same position twice but using the vector code
+        G = f.calcGradient_single_pt(r, np.array([dp_pos, dp_pos]), np.array([m,m]), s, n, verbose=True)
+
+        err = np.mean(np.abs(G_simple - G/2))
+        if self.verbose:
+            print('err', err)
+            print('G_simple', G_simple)
+        if err > 1e-8:
+            raise ValueError
+
+    def test03b_Grad_single_pt(self):
+        """
+        test the function calcBfield_single_pt with random values
 
         :return:
         """
@@ -207,6 +282,8 @@ class fields(TestCase):
         r = np.random.rand(3)
         m = np.random.rand(N, 3)
         dp_pos = np.random.rand(N, 3)
+        s = np.random.rand(3)
+        n = np.random.rand(3)
 
         # r = np.array([ 0.61272976,  0.93453872,  0.13334545])
         # m = np.array([ 0.53571495,  0.45998269,  0.65775688])
@@ -217,33 +294,35 @@ class fields(TestCase):
             print('m', m)
             print('dp_pos', dp_pos)
 
+            print('s', s)
+            print('n', n)
+
 
         # calculate for each dipole with the simple formula
-        B_simple = np.array([self.my_field_simple(r, p, mi) for mi, p in zip(m, dp_pos)])
-        # now sum up to get total field
-        B_simple = np.sum(B_simple, 0)
-        B = f.calcBfield_single_pt(r, dp_pos, m)
+        G_simple = np.array([self.my_grad_simple(r, p, mi, s, n) for mi, p in zip(m, dp_pos)])
+        # now sum up to get total field gradient
+        G_simple = np.sum(G_simple, 0)
+        G = f.calcGradient_single_pt(r, dp_pos, m, s, n, verbose=True)
 
-        err = np.mean(np.abs(B_simple - B))
+        err = np.mean(np.abs(G_simple - G))
         if self.verbose:
             print('err', err)
-            print('B_simple', B_simple)
-            print('B', B)
+            print('G_simple', G_simple)
+            print('G', G)
         if err > 1e-8:
-            print('rB_simple', B_simple)
-            print('B', B)
-
             raise ValueError
 
     def test04_Grad_many_pt(self):
 
+        print('========== TEST 4 ==========')
         N, M= 2, 4
 
         # create random vectors
         r = np.random.rand(M, 3)
         m = np.random.rand(N, 3)
         dp_pos = np.random.rand(N, 3)
-
+        s = np.random.rand(3)
+        n = np.random.rand(3)
 
         if self.verbose:
             print('r', r)
@@ -252,21 +331,16 @@ class fields(TestCase):
 
 
 
-        B_simple = np.array([f.calcBfield_single_pt(ri, dp_pos, m) for ri in r])
-        # B_simple = np.sum(B_simple, 1)
+        G_simple = np.array([f.calcGradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
 
-        B = f.calcBfield(r, dp_pos, m)
-        print(B[['x','y','z']])
-
+        G = f.calcGradient(r, dp_pos, m, s, n)
 
         if self.verbose:
-            print('B', B)
-            print('B_simple', B_simple)
+            print('G', np.array(G['G']))
+            print('G_simple', G_simple)
+            print('G diff', G_simple - np.array(G['G']))
 
-        # err = np.sum(np.abs(B_simple - np.array(B[['x','y','z']])))
-        err = np.mean(np.abs(B_simple - np.array(B[['Bx','By','Bz']])))
-
-        print('---', err)
+        err = np.mean(np.abs(G_simple - np.array(G['G'])))
 
         if err > 1e-6:
             raise ValueError

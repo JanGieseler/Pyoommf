@@ -3,9 +3,9 @@ import pandas as pd
 from copy import deepcopy
 
 
-def calcBfield(rs, data, info, use_parallel = True):
+def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
     '''
-    Calculate the magnetic field for a collection of dipoles
+    Calculate the magnetic field for a collection of dipoles, where the dipoles have been calculated by OOMMF
     rs: (matrix with dimension m x 3), positions at which field is evaluated in space (in m)
     data: dataframe with columns 'mx', 'my', 'mz', 'x', 'y', 'z' that gives the dipolevector and its location
     info: dictionary with metadata for the dataset, contains 'xstepsize', 'ystepsize', 'zstepsize', which give the spacing of the dipole locations
@@ -28,75 +28,54 @@ def calcBfield(rs, data, info, use_parallel = True):
 
     rs *=1e6# convert from m to um
 
+    B = calcBfield(rs, DipolePositions, m, use_parallel=use_parallel, verbose=verbose)
 
-    print('number of magnetic moments', len(data))
-    print('number of positions', len(rs))
-    if use_parallel:
-        # try importing the multiprocessing library
-        from joblib import Parallel, delayed
-        import multiprocessing
-        num_cores = multiprocessing.cpu_count()
+    return B
 
-        print('using ', num_cores, ' cores')
-
-    def process(r):
-        return calcBfield_single_pt(r, DipolePositions, m)
-
-    # def process(rs):
-    #     """
-    #     calculates the data at positions rs
-    #     """
     #
-    #     # data = {
-    #     #     'x':deepcopy(rs[:,0]),
-    #     #     'y':deepcopy(rs[:,1]),
-    #     #     'z':deepcopy(rs[:,2])
-    #     # }
+    # print('number of magnetic moments', len(data))
+    # print('number of positions', len(rs))
+    # if use_parallel:
+    #     # try importing the multiprocessing library
+    #     from joblib import Parallel, delayed
+    #     import multiprocessing
+    #     num_cores = multiprocessing.cpu_count()
     #
+    #     print('using ', num_cores, ' cores')
+    #
+    # def process(r):
+    #     return calcBfield_single_pt(r, DipolePositions, m)
+    #
+    #
+    #
+    # # convert from um to m
+    # data_out = {
+    #     'x':deepcopy(rs[:,0]*1e-6),
+    #     'y':deepcopy(rs[:,1]*1e-6),
+    #     'z':deepcopy(rs[:,2]*1e-6)
+    # }
+    #
+    #
+    #
+    # if use_parallel:
+    #
+    #     # Parallel(n_jobs=1)(delayed(sqrt)(i ** 2) for i in range(10))
+    #     # B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+    #     B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+    #     # B = Parallel(n_jobs=num_cores)(delayed(process)(r) for r in rs)
+    #     B = np.array(B)
+    #
+    # else:
     #     B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
-    #     data['Bx'] = deepcopy(B[:,0])
-    #     data['By'] = deepcopy(B[:,1])
-    #     data['Bz'] = deepcopy(B[:,2])
     #
-    #
-    #     return data
-
-    # def rs_subset(i, num_cores, rs):
-    #     data_per_core = int(np.floor(len(rs)/num_cores))
-    #     return rs[i*data_per_core:min((i+1)*data_per_core, len(rs))]
-
-
-
-
-    # convert from um to m
-    data_out = {
-        'x':deepcopy(rs[:,0]*1e-6),
-        'y':deepcopy(rs[:,1]*1e-6),
-        'z':deepcopy(rs[:,2]*1e-6)
-    }
-
-
-
-    if use_parallel:
-
-        # Parallel(n_jobs=1)(delayed(sqrt)(i ** 2) for i in range(10))
-        # B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
-        B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
-        # B = Parallel(n_jobs=num_cores)(delayed(process)(r) for r in rs)
-        B = np.array(B)
-
-    else:
-        B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
-
-    # put data into a dictionary
-    data_out['Bx'] = deepcopy(B[:, 0])
-    data_out['By'] = deepcopy(B[:, 1])
-    data_out['Bz'] = deepcopy(B[:, 2])
+    # # put data into a dictionary
+    # data_out['Bx'] = deepcopy(B[:, 0])
+    # data_out['By'] = deepcopy(B[:, 1])
+    # data_out['Bz'] = deepcopy(B[:, 2])
 
 
     # return data as a pandas dataframe
-    return pd.DataFrame.from_dict(data_out)
-
+    # return pd.DataFrame.from_dict(data_out)
 
 def calcBfield_single_pt(r, DipolePositions, m):
     """
@@ -106,8 +85,17 @@ def calcBfield_single_pt(r, DipolePositions, m):
     :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
     :return:
     """
+
+    # check that DipolePositions and m have the same shape
+    assert np.shape(DipolePositions) == np.shape(m)
+    #
+    # # check that r is a vector of length 3
+    assert len(np.shape(r)) == 1
+    assert len(r) == 3
+
     mu0 = 4 * np.pi * 1e-7  # T m /A
-    a = np.ones((np.shape(DipolePositions)[0], 1)) * np.array([r]) - DipolePositions
+    a = np.ones((np.shape(DipolePositions)[0], 1)) * np.array([r]) - DipolePositions #
+
     rho = np.sqrt(np.sum(a ** 2, 1))
 
     # if we request thefield at the location of the dipole the field diverges, thus we exclude this value because we only want to get the fields from all the other dipoles
@@ -125,11 +113,164 @@ def calcBfield_single_pt(r, DipolePositions, m):
 
     return np.sum(B, 0)
 
+def calcBfield(rs, DipolePositions, m, use_parallel = True, verbose = False):
+    '''
+    calculates the magnetic field at mnultiple positions r
+    :param rs:  matrix Mx3, position at which field is evaluated (in um)
+    :param DipolePositions: matrix Nx3, of positions of dipoles (in um)
+    :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
+    use_parallel:  (boolean) if True use parallel execution of code
+    :param verbose: if True print information as script is executed
+    :returns pandas dataframe columns 'Bx', 'By', 'Bz', 'x', 'y', 'z' that gives the fieldvector and its location (=rs)
+    '''
 
-#
-# def unit_vector(theta, phi):
-#
-#     return [np.cos(phi)*np.sin(theta), np.sin(phi)*np.sin(theta), np.cos(theta)]
+
+
+    # check that DipolePositions and m have the same shape
+    assert np.shape(DipolePositions) == np.shape(m)
+    #
+    # # check that r is a vector of length 3
+    assert np.shape(rs)[1] == 3
+
+    if verbose:
+        print('number of magnetic moments', len(data))
+        print('number of positions', len(rs))
+    if use_parallel:
+        # try importing the multiprocessing library
+        from joblib import Parallel, delayed
+        import multiprocessing
+        num_cores = multiprocessing.cpu_count()
+        if verbose:
+            print('using ', num_cores, ' cores')
+
+
+    if use_parallel:
+
+        B = Parallel(n_jobs=num_cores)(delayed(calcBfield_single_pt)(r, DipolePositions, m) for r in rs)
+        B = np.array(B)
+
+    else:
+        B = np.array([calcBfield_single_pt(r, DipolePositions, m) for r in rs])
+
+    # put data into a dictionary
+    data_out = {
+        'x':deepcopy(rs[:,0]),
+        'y':deepcopy(rs[:,1]),
+        'z':deepcopy(rs[:,2]),
+        'Bx':deepcopy(B[:, 0]),
+        'By': deepcopy(B[:, 1]),
+        'Bz': deepcopy(B[:, 2]),
+    }
+
+
+    # return data as a pandas dataframe
+    return pd.DataFrame.from_dict(data_out)
+
+def calcGradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 = 4 * np.pi *1e-7):
+    '''
+    calculates the magnetic field at position r
+    :param r: vector of length 3 position at which field is evaluates (in um)
+    DipolePositions: (matrix with dimension N x 3) m dipole location in space in nm
+    m:  (matrix with dimension N x 3) magnetic moment of a dipole in 1e-18J/T
+    s: (vector of length 3) spin vector no units
+    n: (vector of length 3) projection vector of the gradient, e.g. motion of resonator
+
+    Output in T/um
+    '''
+
+    # check that DipolePositions and m have the same shape
+    assert np.shape(DipolePositions) == np.shape(m)
+    assert np.shape(m)[1]==3
+    N = len(m)
+
+    #
+    # # check that r, s and n are vectors of length 3
+    assert len(np.shape(r)) == 1
+    assert len(r) == 3
+    assert len(np.shape(s)) == 1
+    assert len(s) == 3
+    assert len(np.shape(n)) == 1
+    assert len(n) == 3
+
+
+    a = np.ones((N,1)) * np.array([r])-DipolePositions
+    rho = np.sqrt(np.sum(a**2,1))
+
+    # calculate the vector product of m and a: m*(r-ri)
+    ma = np.sum(m * a, 1)
+    # calculate the vector product of s and a: s*(r-ri)
+    sa = np.sum(np.ones((N,1)) * np.array([s])*a,1)
+    # calculate the vector product of n and a: n*(r-ri)
+    na = np.sum(np.ones((N,1)) * np.array([n])*a,1)
+    # calculate the vector product of s and n
+    sn = np.dot(s, n)
+    # calculate the vector product of m and n
+    mn = np.sum(np.ones((N, 1)) * np.array([n]) * m, 1)
+    # calculate the vector product of m and s
+    ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
+
+    gradB = 3. * mu0 / (4 * np.pi * (rho) ** 5) * (
+            ma * sn + sa * mn + ms * na
+            - 5 * (sa * ma / rho ** 2) * na
+    )
+
+
+    if verbose:
+        print('grad due to every dipole', gradB)
+
+    return np.sum(gradB,0)
+
+def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False):
+    '''
+    Calculate the magnetic field gradient for a collection of dipoles at multiple positions r
+    :param rs:  matrix Mx3, position at which field is evaluated (in um)
+    :param DipolePositions: matrix Nx3, of positions of dipoles (in um)
+    :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
+    :param s: direction of field component for which the gradient is evaluates (e.g. direction of NV center)
+    :param n: direction of gradient (e.g. direction of resonator motion)
+    use_parallel:  (boolean) if True use parallel execution of code
+    :param verbose: if True print information as script is executed
+    :returns pandas dataframe columns 'Gx', 'By', 'Bz', 'x', 'y', 'z' that gives the fieldvector and its location (=rs)
+
+    rs: (matrix with dimension M x 3), positions at which field is evaluated in space (in um)
+    M: dataframe with columns 'mx', 'my', 'mz', 'x', 'y', 'z' that gives the dipolevector and its location
+    info: dictionary with metadata for the dataset, contains 'xstepsize', 'ystepsize', 'zstepsize', which give the spacing of the dipole locations
+    use_parallel:  (boolean) if True use parallel execution of code this is not working yet....
+
+    :returns pandas dataframe columns 'G', 'x', 'y', 'z' that gives the Gradient of component s along n and its location (=rs)
+    '''
+
+    if verbose:
+        print('number of magnetic moments', len(data))
+        print('number of positions', len(rs))
+    if use_parallel:
+        # try importing the multiprocessing library
+        from joblib import Parallel, delayed
+        import multiprocessing
+        num_cores = multiprocessing.cpu_count()
+        if verbose:
+            print('using ', num_cores, ' cores')
+
+    if use_parallel:
+        G = Parallel(n_jobs=num_cores)(delayed(calcGradient_single_pt)(r, DipolePositions, m, s, n) for r in rs)
+        G = np.array(G)
+    else:
+        G = np.array([calcGradient_single_pt(r, DipolePositions, m) for r in rs])
+
+    # put data into a dictionary
+    data_out = {
+        'x': deepcopy(rs[:, 0]),
+        'y': deepcopy(rs[:, 1]),
+        'z': deepcopy(rs[:, 2]),
+        'G': G
+    }
+
+
+
+
+    # return data as a pandas dataframe
+    return pd.DataFrame.from_dict(data_out)
+
 
 def field_component(data, component_name = None, s = None):
     """
@@ -155,41 +296,10 @@ def field_component(data, component_name = None, s = None):
 
     return D, label
 
-
-# old:
-def calcGradient(r, DipolePositions, m, s, n):
-    '''
-    Calculate the gradient for a collection of dipoles
-    r: (vector of length 3) position in space in nm
-    ri: (matrix with dimension m x 3) m dipole location in space in nm
-
-    m: (vector of length 3) magnetic moment of a dipole in 1e-18J/T
-    s: (vector of length 3) spin vector no units
-    n: (vector of length 3) projection vector of the gradient, e.g. motion of resonator
-
-    Output in T/um
-    '''
-
-    mu0 = 4 * np.pi *1e-7
-
-
-    a = np.ones((np.shape(DipolePositions)[0],1)) * np.array([r])-DipolePositions
-    rho = np.sqrt(np.sum(a**2,1))
-    # calculate the vector product of m and a: m*(r-ri)
-    ma = np.sum(np.ones((np.shape(DipolePositions)[0],1)) * np.array([m])*a,1)
-    # calculate the vector product of s and a: s*(r-ri)
-    sa = np.sum(np.ones((np.shape(DipolePositions)[0],1)) * np.array([s])*a,1)
-    # calculate the vector product of n and a: n*(r-ri)
-    na = np.sum(np.ones((np.shape(DipolePositions)[0],1)) * np.array([n])*a,1)
-
-
-    gradB = 3. * mu0 / (4 * np.pi * (rho)**5) * (
-         ma * np.vdot(s, n)
-        +sa * np.vdot(m, n)
-        - (5 * sa * ma / rho**2 - np.vdot(m, s) ) * na
-        )
-
-    return np.sum(gradB,0)
+#
+# def unit_vector(theta, phi):
+#
+#     return [np.cos(phi)*np.sin(theta), np.sin(phi)*np.sin(theta), np.cos(theta)]
 
 
 if __name__ == '__main__':
