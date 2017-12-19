@@ -135,7 +135,6 @@ class fields(TestCase):
         print('>>>>>>gradB', gradB)
         return gradB
 
-
     def my_field_simple(self, r, dp_pos, m):
         """
 
@@ -321,6 +320,39 @@ class fields(TestCase):
         r = np.random.rand(M, 3)
         m = np.random.rand(N, 3)
         dp_pos = np.random.rand(N, 3)
+        s = np.random.rand(3)
+        n = np.random.rand(3)
+
+        if self.verbose:
+            print('r', r)
+            print('m', m)
+            print('dp_pos', dp_pos)
+
+
+
+        G_simple = np.array([f.calcGradient_single_pt(ri, dp_pos, m, s, n) for ri in r])
+
+        G = f.calcGradient(r, dp_pos, m, s, n)
+
+        if self.verbose:
+            print('G', np.array(G['G']))
+            print('G_simple', G_simple)
+            print('G diff', G_simple - np.array(G['G']))
+
+        err = np.mean(np.abs(G_simple - np.array(G['G'])))
+
+        if err > 1e-6:
+            raise ValueError
+
+    def test04b_Grad_many_pt(self):
+
+        print('========== TEST 4b ==========')
+        N, M= 2, 4
+
+        # create random vectors
+        r = np.random.rand(M, 3)
+        m = np.random.rand(3)
+        dp_pos = np.random.rand(3)
         s = np.random.rand(3)
         n = np.random.rand(3)
 

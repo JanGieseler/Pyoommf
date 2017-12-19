@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from copy import deepcopy
-
+import time
 
 def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
     '''
@@ -77,12 +77,13 @@ def calcBfield_oommf(rs, data, info, use_parallel = True, verbose = False):
     # return data as a pandas dataframe
     # return pd.DataFrame.from_dict(data_out)
 
-def calcBfield_single_pt(r, DipolePositions, m):
+def calcBfield_single_pt(r, DipolePositions, m, mu0 = 4 * np.pi * 1e-7):
     """
     calculates the magnetic field at position r
     :param r: vector of length 3 position at which field is evaluates (in um)
     :param DipolePositions: matrix Nx3, of positions of dipoles (in um)
     :param m:  matrix Nx3, components dipole moment at position DipolePositions mx, my, mz (in 1e-18 J/T)
+    mu0 = 4 * np.pi * 1e-7  # T m /A
     :return:
     """
 
@@ -174,12 +175,16 @@ def calcGradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 = 4
     m:  (matrix with dimension N x 3) magnetic moment of a dipole in 1e-18J/T
     s: (vector of length 3) spin vector no units
     n: (vector of length 3) projection vector of the gradient, e.g. motion of resonator
-
+    mu0 = 4 * np.pi * 1e-7  # T m /A
     Output in T/um
     '''
 
     # check that DipolePositions and m have the same shape
     assert np.shape(DipolePositions) == np.shape(m)
+
+    if len(np.shape(m)) == 1:
+        DipolePositions = np.array([DipolePositions])
+        m = np.array([m])
     assert np.shape(m)[1]==3
     N = len(m)
 
@@ -209,7 +214,7 @@ def calcGradient_single_pt(r, DipolePositions, m, s, n, verbose = False, mu0 = 4
     # calculate the vector product of m and s
     ms = np.sum(np.ones((N, 1)) * np.array([s]) * m, 1)
 
-    gradB = 3. * mu0 / (4 * np.pi * (rho) ** 5) * (
+    gradB = 3. * mu0 / (4 * np.pi * (rho)** 5) * (
             ma * sn + sa * mn + ms * na
             - 5 * (sa * ma / rho ** 2) * na
     )
@@ -237,7 +242,7 @@ def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False)
     info: dictionary with metadata for the dataset, contains 'xstepsize', 'ystepsize', 'zstepsize', which give the spacing of the dipole locations
     use_parallel:  (boolean) if True use parallel execution of code this is not working yet....
 
-    :returns pandas dataframe columns 'G', 'x', 'y', 'z' that gives the Gradient of component s along n and its location (=rs)
+    :returns pandas dataframe columns 'G', 'x', 'y', 'z' that gives the Gradient (T/um) of component s along n and its location (=rs)
     '''
 
     if verbose:
@@ -250,6 +255,7 @@ def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False)
         num_cores = multiprocessing.cpu_count()
         if verbose:
             print('using ', num_cores, ' cores')
+
 
     if use_parallel:
         G = Parallel(n_jobs=num_cores)(delayed(calcGradient_single_pt)(r, DipolePositions, m, s, n) for r in rs)
@@ -271,6 +277,150 @@ def calcGradient(rs, DipolePositions, m, s, n, use_parallel=True, verbose=False)
     # return data as a pandas dataframe
     return pd.DataFrame.from_dict(data_out)
 
+
+def calc_B_field_single_dipole(p):
+    """
+
+    calculate the magnetic fields along a direction s for field component n for a dipole that is located at the origin
+
+    p: parameters - dictionary with following entries:
+        tag: name identifier (string)
+     a: radius in um
+     Br: surface magnetization in Teslas
+     phi_m: polar angle in deg
+     theta_m: azimuthal angle in deg
+     d_bead_z: distance top of bead to NV plane
+     mu_0: vacuum permeability ( T m /A)
+     d_bead_z: distance between bead and z plane
+     dx: distance between points (in um)
+     x_min, x_max, y_min, y_max: plot dimensions (in um)
+    """
+
+    r, M = p_to_positions(p)
+    DipolePositions = np.zeros(3)  # we assume that the magnet is at 0,0,0
+
+    start = time.time()
+    data_out = calcBfield(r, DipolePositions, M)
+    #     G = f.calcGradient(r, DipolePositions, M, s, n)
+    #     data_out['G'] = G['G']
+    end = time.time()
+    print('duration: {:0.2f} min'.format((end - start) / 60))
+
+    # if filename not None:
+    #     # save data to csv
+    #     out_file = os.path.join('data/', filename)
+    #     pd.DataFrame.from_dict(data_out).to_csv(out_file, index=False)
+
+    return data_out
+
+def calc_Gradient_single_dipole(p, s, n):
+    """
+    calculate the gradients along a direction s for field component n for a dipole that is located at the origin
+
+    p: parameters - dictionary with following entries:
+        tag: name identifier (string)
+     a: radius in um
+     Br: surface magnetization in Teslas
+     phi_m: polar angle in deg
+     theta_m: azimuthal angle in deg
+     d_bead_z: distance top of bead to NV plane
+     mu_0: vacuum permeability ( T m /A)
+     d_bead_z: distance between bead and z plane
+     dx: distance between points (in um)
+     x_min, x_max, y_min, y_max: plot dimensions (in um)
+    """
+
+    r, M = p_to_positions(p)
+    DipolePositions = np.zeros(3)  # we assume that the magnet is at 0,0,0
+
+    start = time.time()
+    data_out = calcGradient(r, DipolePositions, M, s, n)
+    end = time.time()
+    print('duration: {:0.2f} min'.format((end - start) / 60))
+
+    return data_out
+
+def p_to_positions(p):
+    """
+    calculate the positions r where to calculate the fields and the moment vector if the dipole
+    p: parameters - dictionary with following entries:
+    a: radius in um
+    Br: surface magnetization in Teslas
+    phi_m: polar angle in deg
+    theta_m: azimuthal angle in deg
+    d_bead_z: distance top of bead to NV plane
+    mu_0: vacuum permeability ( T m /A)
+    d_bead_z: distance between bead and z plane
+    dx: distance between points (in um)
+    x_min, x_max, y_min, y_max: plot dimensions (in um)
+
+
+    :returns positions r (in um) and magnetic moment M in (in 1e-18 J/T)
+    """
+    # calculate the magnetic moment
+    M = 4 * np.pi / 3 *p['a']**3* p['Br'] / p['mu_0']
+    phi_m = p['phi_m'] * np.pi / 180
+    theta_m = p['theta_m'] * np.pi / 180
+    M = M * np.array([
+        np.cos(phi_m) * np.sin(theta_m),
+        np.sin(phi_m) * np.sin(theta_m),
+        np.cos(theta_m)
+
+    ])
+
+    #     xmax, ymax = 3,3 # extend in um
+    #     xmin, ymin = None,None
+    dx = p['dx']
+
+    xmax = p['xmax']
+    if 'xmin' not in p:
+        xmin = -xmax
+    else:
+        xmin = p['xmin']
+    if 'ymin' not in p:
+        ymin = xmin
+    else:
+        ymin = p['ymin']
+    if 'ymax' not in p:
+        ymax = xmax
+    else:
+        ymin = p['ymin']
+
+    zo = p['d_bead_z'] + p['a']
+
+    # calculate the grid
+    x = np.arange(xmin, xmax+dx, dx)
+    y = np.arange(ymin, ymax+dx, dx)
+    Nx, Ny = len(x), len(y)
+    X, Y = np.meshgrid(x, y)
+
+    r = np.array([X.flatten(), Y.flatten(), zo * np.ones(len(X.flatten()))]).T
+
+    return r, M
+
+
+def p_to_filename(p):
+    """
+    create filename from parameters
+
+    if parameters are given in a dictionary "p" call as follows: p_to_filename(*p)
+
+    p: parameters - dictionary with following entries:
+        tag: name identifier (string)
+    a: radius in um
+    Br: surface magnetization in Teslas
+    phi_m: polar angle in deg
+    theta_m: azimuthal angle in deg
+    d_bead_z: distance top of bead to NV plane
+    mu_0: vacuum permeability ( T m /A)
+    d_bead_z: distance between bead and z plane
+    dx: distance between points (in um)
+    x_min, x_max, y_min, y_max: plot dimensions (in um)
+    """
+
+    filename = '{:s}_a_{:0.1f}um_phi_m_{:2.0f}deg_theta_m_{:2.0f}deg'.format(p['tag'], p['a'], p['phi_m'], p['theta_m'])
+
+    return filename
 
 def field_component(data, component_name = None, s = None):
     """
@@ -303,41 +453,58 @@ def field_component(data, component_name = None, s = None):
 
 
 if __name__ == '__main__':
-
-    import read_write as rw
-    import os
-    import datetime
-
-    # folder = 'Z:\Lab\Cantilever\tmp_jan\oommf_results_2'
-    folder = ''
-
-    file_mag = os.path.join(folder , 'random_K1_length_1.5um-Oxs_MinDriver-Magnetization-00000-0001715-omf.tsv')
-    file_H = os.path.join(folder , 'random_K1_length_1.5um-Oxs_CGEvolve-H-00000-0001715-ovf.tsv')
-
-    print(os.path.exists(file_H))
-
-    data_mag, info_mag = rw.load_ommf_vect_data(file_mag)
-    data_mag.head()
-
-    data_H, info_H = rw.load_ommf_vect_data(file_H)
-    data_H.head()
-
-    zo = -5e-9
-    subdata_H = rw.get_slice(data_H, zo, info_mag, 'z')
-    subdata_mag = rw.get_slice(data_mag, zo, info_mag, 'z')
-
-    r = subdata_H[['x', 'y', 'z']].as_matrix()
-
-    r = r[0:10, :]
-    print('shape r', np.shape(r))
+    p = {
+        'tag': 'bead_1',
+        'a': 1.4,
+        'Br': 0.4,
+        'phi_m': 90,
+        'theta_m': 90,
+        'mu_0': 4 * np.pi * 1e-7,
+        'd_bead_z': 0,
+        'dx': 0.2,
+        'xmax': 10
+    }
 
 
+    s = np.array([1, 1, 1])
+    n = np.array([1, 0, 0])
 
-    t1 =datetime.datetime.now()
-    dataB = calcBfield(r, subdata_mag, info_mag, True)
-    t2 = datetime.datetime.now()
-    # dataB = calcBfield(r, subdata_mag, info_mag, False)
-    # t3 = datetime.datetime.now()
+    data = calc_Gradient_single_dipole(p, s, n)
 
-    print('excution time parallel', str(t2-t1))
-    # print('excution time not parallel', str(t3 - t2))
+    # import read_write as rw
+    # import os
+    # import datetime
+    #
+    # # folder = 'Z:\Lab\Cantilever\tmp_jan\oommf_results_2'
+    # folder = ''
+    #
+    # file_mag = os.path.join(folder , 'random_K1_length_1.5um-Oxs_MinDriver-Magnetization-00000-0001715-omf.tsv')
+    # file_H = os.path.join(folder , 'random_K1_length_1.5um-Oxs_CGEvolve-H-00000-0001715-ovf.tsv')
+    #
+    # print(os.path.exists(file_H))
+    #
+    # data_mag, info_mag = rw.load_ommf_vect_data(file_mag)
+    # data_mag.head()
+    #
+    # data_H, info_H = rw.load_ommf_vect_data(file_H)
+    # data_H.head()
+    #
+    # zo = -5e-9
+    # subdata_H = rw.get_slice(data_H, zo, info_mag, 'z')
+    # subdata_mag = rw.get_slice(data_mag, zo, info_mag, 'z')
+    #
+    # r = subdata_H[['x', 'y', 'z']].as_matrix()
+    #
+    # r = r[0:10, :]
+    # print('shape r', np.shape(r))
+    #
+    #
+    #
+    # t1 =datetime.datetime.now()
+    # dataB = calcBfield(r, subdata_mag, info_mag, True)
+    # t2 = datetime.datetime.now()
+    # # dataB = calcBfield(r, subdata_mag, info_mag, False)
+    # # t3 = datetime.datetime.now()
+    #
+    # print('excution time parallel', str(t2-t1))
+    # # print('excution time not parallel', str(t3 - t2))
